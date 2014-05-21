@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>4D Renderer - WebGL</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+		<meta name="apple-mobile-web-app-capable" content="yes"/>
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+
+		<script type='text/javascript' src='/js/jquery-1.11.0.min.js'></script>
+		<script type="text/javascript" src="/js/purl.js"></script>
+		<script type='text/javascript' src='/js/util.js'></script>
+		<script type='text/javascript' src='/js/lua.vm-util.js'></script>
+		<script type='text/javascript' src='/js/gl-matrix.2.2.0.min.js'></script>
+		<script type='text/javascript' src='/js/gl-util.js'></script>
+		<script type='text/javascript' src='/js/mouse3d.js'></script>
+		<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+		<script type='text/javascript' src='main.js'></script>
+		
+<script type='text/javascript'>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-17312646-1']);
+_gaq.push(['_trackPageview']);
+(function() {
+	var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+	ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+	var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+})();
+</script>
+
+	</head>
+	<body style='margin:0px; overflow:hidden; background-color:black; color:white'>
+		<div id='menu' style='position:absolute'>
+			<img id='panelButton' src='menu.png' style='padding:5px'/>
+			<button id='infoButton' style='background-color:black; color:white; width:24px; height:24px; border:1px solid white; cursor:pointer; display:table-cell; align:center; vertical-align:top; margin:5px'>?</button><br>
+		</div>
+		
+		<div id='panel' style='overflow-x:visible; overflow-y:scroll; z-index:1; position:absolute; top:32px; display:none'>
+			<br>
+			rotation:<br>
+			<select id='rotation'>
+				<option name='game3d'>game3d</option>
+				<option name='game4d'>game4d</option>
+				<option name='xyz'>xyz</option>
+				<option name='xyw'>xyw</option>
+				<option name='xzw'>xzw</option>
+				<option name='yzw'>yzw</option>
+			</select>
+			<br>
+			<button id='resetRotation'>reset rotation</button><br>
+			<br>
+			renderer:<br>
+			<select id='renderer'>
+				<option name='slices'>slices</option>
+				<option name='tesseract'>tesseract</option>
+			</select><br>
+			<br>
+			<button id='resetPlayer'>reset</button><br>
+			<br>
+			FPS: <div id='fps'></div>
+			<br>
+		</div>
+			
+		<div id='info' style='display:none; overflow:scroll; top:32px; z-index:1; position:absolute; background-color:rgba(255,255,255,.85); color:black; padding:10px'>
+			Try to jump your way to the top!<br>
+			Watch out for the hole in the middle!<br>
+			<br>
+			Controls:<br>
+			w s - move forward / back<br>
+			a d - move left / right<br>
+			q e - move in / out of 4th dimension<br>
+			space - jump<br>
+			left click - rotate<br>
+			right click / shift+click - zoom<br>
+		</div>
+		
+		<div id='webglfail' style='display:none'>
+			Sorry, your browser does not support WebGL<br>
+			Try one of these other, better browsers:<br>
+			<a href='http://www.google.com/chrome'>Chrome</a><br>
+			<a href='http://www.mozilla.org/firefox'>Firefox</a><br>
+			<a href='http://www.apple.com/safari'>Safari</a><br>
+			<b>Opera Users:</b><br>
+			Enter "opera:config" in the address bar.<br>
+			In the "User Prefs" section set both "Enable Hardware Acceleration" and "Enable WebGL" to "1" and then click "Save".<br>
+			It is still buggy.<br>
+			<b>IE Users:</b><br>
+			Sorry guys, IE doesn't plan to support WebGL.<br>
+			Consider using a more <a href='http://www.w3schools.com/browsers/browsers_stats.asp'>standard compliant</a> browser.<br>
+			<br>
+			<center>
+				<a href='puzzle-4d.png'>
+					<img src='puzzle-4d.png'></img>
+				</a><br>
+			</center>
+		</div>
+
+		<div id='lua-vm-container' style='display:none'></div>
+	</body>
+</html>
