@@ -411,12 +411,22 @@ function initInput() {
 
 $(document).ready(function() {
 	$('#panelButton').click(function() {
-		$('#panel').show();	
-		$('#info').hide();
+		var panel = $('#panel');	
+		if (panel.css('display') == 'none') {
+			panel.show();
+			$('#info').hide();
+		} else {
+			panel.hide();
+		}
 	});
 	$('#infoButton').click(function() {
-		$('#info').show();
-		$('#panel').hide();
+		var info = $('#info');
+		if (info.css('display') == 'none') {
+			info.show();
+			$('#panel').hide();
+		} else {
+			info.hide();
+		}
 	});
 	
 	canvas = $('<canvas>', {
@@ -448,7 +458,7 @@ $(document).ready(function() {
 		player.reset();
 	});
 
-	rotationMethod = 'game3d';
+	rotationMethod = '3d';
 	$('#rotation').change(function() {
 		rotationMethod = $(this).val();
 	});
@@ -470,7 +480,7 @@ $(document).ready(function() {
 	GL.view.zNear = .1;
 	GL.view.zFar = 100;
 	GL.onfps = function(fps) { $('#fps').text(fps); };
-	viewPos4[2] = 25;
+	viewPos4[2] = 10;
 
 	gl.enable(gl.DEPTH_TEST);
 	gl.clearColor(.6, .8, 1., 1.);
@@ -721,7 +731,7 @@ void main() {
 
 	solidCubeMesh = new GL.SceneObject({
 		mode : gl.TRIANGLES,
-		shader : slicesShader,
+		shader : tesseractShader,
 		attrs : {
 			vertex : new GL.ArrayBuffer({dim : dim, data : quadVertexes, keep : true}),
 			texCoord : new GL.ArrayBuffer({dim : 2, data : texCoords, keep : true})
@@ -744,13 +754,13 @@ void main() {
 			var rotAngle = Math.PI / 180 * Math.sqrt(dx*dx + dy*dy);
 			var r = Math.sqrt(dx*dx + dy*dy);
 			if (r == 0) return;
-			if (rotationMethod == 'game4d') {
+			if (rotationMethod == '4d') {
 				mat4.rotate4D(tmpR, -.01 * dx, 0, 0, 1, 0, 0, 0);	//xw rotation
 				mat4.mul(viewAngle4, viewAngle4, tmpR);
 				mat4.rotate4D(tmpR, -.01 * dy, 0, 0, 0, 0, 1, 0);	//yw rotation
 				mat4.mul(viewAngle4, viewAngle4, tmpR);
 				orthonormalize(viewAngle4, 4);
-			} else if (rotationMethod == 'game3d') {
+			} else if (rotationMethod == '3d') {
 				mat4.rotate4D(tmpR, -.01 * dx, 1, 0, 0, 0, 0, 0);	//xy rotation
 				mat4.mul(viewAngle4, viewAngle4, tmpR);
 				mat4.rotate4D(tmpR, -.01 * dy, 0, 0, 0, 1, 0, 0);	//yz rotation
