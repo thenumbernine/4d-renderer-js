@@ -55,23 +55,109 @@ _gaq.push(['_trackPageview']);
 				<option name='slices'>slices</option>
 			</select><br>
 			<br>
-			<button id='resetPlayer'>reset</button><br>
-			<br>
+			<!--<button id='resetPlayer'>reset</button><br>
+			<br>-->
 			FPS: <div id='fps'></div>
 			<br>
 		</div>
 			
 		<div id='info' style='display:none; overflow:scroll; top:32px; z-index:1; position:absolute; background-color:rgba(255,255,255,.85); color:black; padding:10px'>
-			Try to jump your way to the top!<br>
-			Watch out for the hole in the middle!<br>
-			<br>
+			<div style='display:none'>	<!-- game? Good idea?  yes? no? -->
+				Try to jump your way to the top!<br>
+				Watch out for the hole in the middle!<br>
+				<br>
+				w s - move forward / back<br>
+				a d - move left / right<br>
+				q e - move in / out of 4th dimension<br>
+				space - jump<br>
+			</div>
 			Controls:<br>
-			w s - move forward / back<br>
-			a d - move left / right<br>
-			q e - move in / out of 4th dimension<br>
-			space - jump<br>
 			left click - rotate<br>
 			right click / shift+click - zoom<br>
+			<br>
+			<h3>A Bit About Rotations</h3>
+			Rotations operate by transferring values from one axis to another.<br>
+				
+			<h3>2D Rotations</h3>
+			This is the 2D rotation equation:<br>
+			<br>
+			\( \textbf{R}_\theta \left[ \matrix{ x \\ y} \right] = \left[ \matrix{ cos\theta & -sin\theta \\ sin\theta & cos\theta } \right] \left[ \matrix{x \\ y} \right] \)<br>
+			<br>
+			This matrix has a similarity Euler's formula for imaginary exponents:<br>
+			\( exp(i\theta) = cos\theta + i sin\theta \)<br>
+			<br>
+			Observing multiplication operations on this exponential map of imaginary numbers reveals:<br>
+			<br>
+			\( exp(i\theta) \textbf{x} \)<br>
+			\( = exp(i\theta)(x+iy) \)<br>
+			\( = (cos\theta + i sin\theta)(x+iy) \)<br>
+			\( = x cos\theta + i(x sin\theta + y cos\theta) + i^2 y sin\theta \)<br>
+			\( = (x cos\theta - y sin\theta) + i (x sin\theta + y cos\theta) \)<br>
+			<br>
+			Rewriting this as a linear space with basis \(1\) and \(i\) gives us the following:<br>
+			<br>
+			\( exp(i\theta) \textbf{x} \)<br>
+			\( = exp(i\theta) \left[ \matrix{x\\y} \right] \)<br>
+			\( = \left[ \matrix{ cos\theta & -sin\theta \\ sin\theta & cos\theta } \right] \left[ \matrix{x\\y} \right] \)<br>
+			<br>
+			Take note that any complex number, \(a+ib\), can be treated as a 2x2 matrix reprsented as \( \left[ \matrix{a & -b \\ b & a} \right] \).<br>
+			<br>
+			From this we can see that, in complex space, \( exp(i\theta) \) operates in the same way that rotations do in a 2D vector space.<br>
+			<br>
+			Now let's look at the motion of the vector as it performs the rotation.<br>
+			<br>
+			Let's watch \(\textbf{v}\) as the angle \(\theta\) changes.  Consider the derivative \( {{d\textbf{R}_\theta \textbf{v}}\over{d\theta}}\):<br>
+			\( {d\over{d\theta}} ( \textbf{R}_\theta \textbf{v} ) \)<br>
+			\( = {{d\textbf{R}_\theta}\over{d\theta}} \textbf{v} \)<br>
+			\( = {d\over{d\theta}} \left[ \matrix{ cos\theta & -sin\theta \\ sin\theta & cos\theta } \right] \textbf{v} \)<br>
+			\( = \left[ \matrix{ -sin\theta & -cos\theta \\ cos\theta & -sin\theta } \right] \textbf{v} \)<br>
+			\( = \left[ \matrix{ 0 & -1 \\ 1 & 0 } \right] \left[ \matrix{ cos\theta & -sin\theta \\ sin\theta & cos\theta } \right] \textbf{v} \)<br>
+			\( = \left[ \matrix{0 & -1 \\ 1 & 0} \right] \textbf{R}_\theta \textbf{v} \)<br>
+			<br>
+			Evaluate this at \( \theta = 0 \) and we get the following general rule for rotations:<br>
+			<br>
+			\( \frac{d\textbf{v}}{d\theta} = \left[ \matrix{0 & -1 \\ 1 & 0} \right] \textbf{v} \)<br>
+			<br>
+			Notice that the derivative of a rotating vector is that same vector multiplied by a 90' rotation matrix.<br>
+			That is, the derivative to a vector is always at a right angle to that vector.<br> 
+			We can see this unfold much more quickly when considering complex rotations.<br>
+			\( \frac{d}{d\theta} (exp(i\theta) \textbf{v}) \)<br>
+			\( = \frac{d}{d\theta} exp(i\theta) \textbf{v} \)<br>
+			\( = i exp(i\theta) \textbf{v} \)<br>
+			<br>
+			In matrix form with linear basis \(1\) and \(i\) this looks strikingly similar:<br>
+			<br>
+			\( = \left[ \matrix{0 & -1 \\ 1 & 0} \right] exp(i\theta) \textbf{v} \)<br>
+			<br>
+			Keep note of the analogy between \( \textbf{R}_\theta \) and \( exp(i\theta) \).<br>
+			<br>
+			Now let's look at the eigen-decomposition of this 90' rotation matrix:<br>
+			<br>
+			\( \left| \matrix{ -\lambda & -1 \\ 1 & -\lambda } \right| = 0 \)<br>
+			\( \lambda^2 + 1 = 0 \)<br>
+			\( \lambda = \pm i \)<br>
+			<br>
+			The corresponding eigenvectors are:<br>
+			for \( \lambda = i \):<br>
+			\( \left| \matrix{-i & -1 \\ 1 & -i} \right| = 0 \) <br>
+			\( \left| \matrix{-i & -1 \\ i & 1} \right| = 0 \) <br>
+			\( \left| \matrix{-i & -1 \\ 0 & 0} \right| = 0 \) <br>
+			<br>
+			This is true for the eigenvector \( \xi_i = \left[ \matrix{1 \\ -i} \right] \).<br>
+			Solving for the other gives us the eigenvector \( \xi_{-i} = \left[ \matrix{1 \\ i} \right] \).<br>
+			<br>
+			Here we see a connection between complex eigenvalue conjugate pairs and planar rotations.<br>
+			Performing the eigen-decomposition on our rotation matrix \( \textbf{R}_\theta \) gives us the following:<br>
+			<br>
+			\( \left| \matrix{ cos\theta - \lambda & -sin\theta \\ sin\theta & cos\theta - \lambda } \right] = 0 \)<br>
+			\( (cos\theta - \lambda)^2 + (sin\theta)^2 = 0 \)<br>
+			\( (cos\theta)^2 - 2 \lambda cos\theta + \lambda^2 + (sin\theta)^2 = 0 \)<br>
+			\( 1 - 2 \lambda cos\theta + \lambda^2 = 0 \)<br>
+			\( \lambda = {1 \over 2} \left( 2cos\theta \pm \sqrt{2 (cos\theta)^2 - 4} \right) \)<br>
+			\( \lambda = cos\theta \pm \sqrt{(cos\theta)^2 - 1} \)<br>
+			\( \lambda = cos\theta \pm \sqrt{-(sin\theta)^2} \)<br>
+			\( \lambda = cos\theta \pm i sin\theta \)<br>
+			<br>
 		</div>
 		
 		<div id='webglfail' style='display:none'>

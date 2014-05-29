@@ -301,7 +301,7 @@ function genmap() {
 	}
 	*/
 	
-	/* generated level */
+	/* generated level * /
 	for (var i = -4; i <= 4; ++i) {
 		for (var j = -4; j <= 4; ++j) {
 			for (var k = -4; k <= 4; ++k) {
@@ -320,10 +320,111 @@ function genmap() {
 			}
 		}
 	}
+	/**/
 
+	/* hypercube */
+	var edges = [
+		[-4,-4,-4],
+		[4,-4,-4],
+		[-4,4,-4],
+		[-4,-4,4],
+		[4,4,-4],
+		[4,-4,4],
+		[-4,4,4],
+		[4,4,4]
+	];
+	for (var j = 0; j < 4; ++j) {
+		$.each(edges, function(_,edge) {
+			for (var i = -4; i <= 4; ++i) {
+				var pos = Array.apply(undefined, edge);
+				pos.splice(j, 0, i); 
+				blocks.push(new Block({pos:pos}));
+			}
+		});
+	}
+	/**/
+
+	/* sphere * /
+	var res = 5;
+	var max = 2;
+	for (var i = -res; i <= res; ++i) {
+		for (var j = -res; j <= res; ++j) {
+			for (var k = -res; k <= res; ++k) {
+				for (var l = -res; l <= res; ++l) {
+					solid[i][j][k][l] = i*i + j*j + k*k + l*l < res*res - 1;
+				}
+			}
+		}
+	}
+
+	/* mandel-julia fractal * /
+	var res = 5;
+	var max = 2;
+	var maxiter = 10;
+	var solid = [];
+	for (var i = -res; i <= res; ++i) {
+		solid[i] = [];
+		for (var j = -res; j <= res; ++j) {
+			solid[i][j] = [];
+			for (var k = -res; k <= res; ++k) {
+				solid[i][j][k] = [];
+				for (var l = -res; l <= res; ++l) {
+					var zr = i*max/res;
+					var zi = j*max/res;
+					var zj = k*max/res;
+					var zk = l*max/res;
+					var cr = -1;
+					var ci = .2;
+					var cj = 0;
+					var ck = 0;
+					var iter = 0;
+					for (; iter < maxiter; ++iter) {
+						var zrn = zr * zr - zi * zi + cr;
+						var zin = 2 * zr * zi + ci;
+						zr = zrn;
+						zi = zin;
+						if (zr * zr + zi * zi > 4) break;
+					}
+					solid[i][j][k][l] = iter == maxiter;
+				}
+			}
+		}
+	}
+	var issolid = function(i,j,k,l) {
+		var r = solid;
+		if (!(i in r)) return; r = r[i];
+		if (!(j in r)) return; r = r[j];
+		if (!(k in r)) return; r = r[k];
+		if (!(l in r)) return; r = r[l];
+		return r;
+	};
+	for (var i = -res; i <= res; ++i) {
+		for (var j = -res; j <= res; ++j) {
+			for (var k = -res; k <= res; ++k) {
+				for (var l = -res; l <= res; ++l) {
+					if (issolid(i,j,k,l)) {
+						if (issolid(i+1,j,k,l) &&
+							issolid(i-1,j,k,l) &&
+							issolid(i,j+1,k,l) &&
+							issolid(i,j-1,k,l) &&
+							issolid(i,j,k+1,l) &&
+							issolid(i,j,k-1,l) &&
+							issolid(i,j,k,l+1) &&
+							issolid(i,j,k,l-1))
+						{
+							blocks.push(new Block({pos:[i,j,k,l]}));
+						}
+					}
+				}
+			}
+		}
+	}
+	/**/
+/*
 	objs.push(player = new Player({
 		pos : playerStartPos
 	}));
+*/
 }
 
 function onkeydown(event) {
@@ -452,12 +553,14 @@ $(document).ready(function() {
 		$('#info').show();
 		$('#panel').hide();
 	}
-	
+
+	/*
 	$('#resetPlayer').click(function() {
 		if (!player) return;
 		player.reset();
 	});
-
+	*/
+	
 	rotationMethod = '3d';
 	$('#rotation').change(function() {
 		rotationMethod = $(this).val();
@@ -503,7 +606,7 @@ void main() {
 	vtx4 += pos4;
 	vtx4 = viewAngle4 * vtx4;
 	vtx4 -= viewPos4;
-	//vtx4.xyz *= 1. / (1. + vtx4.w * vtx4.w);
+	vtx4.xyz *= 1. / (1. + vtx4.w * vtx4.w);
 	vtx4.w = 1.;
 	gl_Position = projMat * vtx4;
 }
