@@ -1,5 +1,6 @@
 var canvas;
 var gl;
+var renderer;
 var mouse;
 var wireCubeMesh;
 var solidCubeMesh;
@@ -111,7 +112,7 @@ orthonormalize = function(m, n) {
 function resize() {
 	canvas.width = window.innerWidth;
 	canvas.height = window.innerHeight;
-	GL.resize();
+	renderer.resize();
 
 	var info = $('#info');
 	var width = window.innerWidth 
@@ -278,7 +279,7 @@ function update() {
 		objs[i].update();
 	}
 	//draw
-	GL.draw();
+	renderer.draw();
 	for (var i = 0; i < blocks.length; ++i) {
 		blocks[i].draw();
 	}
@@ -540,7 +541,8 @@ $(document).ready(function() {
 	$(window).disableSelection()
 
 	try {
-		gl = GL.init(canvas);
+		renderer = new GL.CanvasRenderer({canvas:canvas});
+		gl = renderer.gl;
 	} catch (e) {
 		$(canvas).remove();
 		$('#webglfail').show();
@@ -580,9 +582,9 @@ $(document).ready(function() {
 	
 	viewPos4 = vec4.create();
 	
-	GL.view.zNear = .1;
-	GL.view.zFar = 100;
-	GL.onfps = function(fps) { $('#fps').text(fps); };
+	renderer.view.zNear = .1;
+	renderer.view.zFar = 100;
+	renderer.onfps = function(fps) { $('#fps').text(fps); };
 	viewPos4[2] = 10;
 
 	gl.enable(gl.DEPTH_TEST);
