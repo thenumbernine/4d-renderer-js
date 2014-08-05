@@ -138,6 +138,7 @@ var GameObject = makeClass({
 		}
 	},
 	draw : function() {
+		if (!this.tex) return;
 		solidCubeMesh.draw({
 			uniforms : {
 				pos4 : this.pos
@@ -542,7 +543,7 @@ $(document).ready(function() {
 
 	try {
 		renderer = new GL.CanvasRenderer({canvas:canvas});
-		gl = renderer.gl;
+		gl = renderer.context;
 	} catch (e) {
 		$(canvas).remove();
 		$('#webglfail').show();
@@ -592,6 +593,7 @@ $(document).ready(function() {
 
 
 	var tesseractVertexShader = new GL.VertexShader({
+		context : gl,
 		code : GL.vertexPrecision + mlstr(function(){/*
 attribute vec4 vertex;
 attribute vec2 texCoord;
@@ -617,6 +619,7 @@ void main() {
 
 	//application of w locally.  good if were not rotating in the w plane
 	var slicesVertexShader = new GL.VertexShader({
+		context : gl,
 		code : GL.vertexPrecision + mlstr(function(){/*
 attribute vec4 vertex;
 attribute vec2 texCoord;
@@ -702,6 +705,7 @@ void main() {
 	});
 
 	var fragmentShader = new GL.FragmentShader({
+		context : gl,
 		code : GL.fragmentPrecision + mlstr(function(){/*
 varying vec4 srcVertex;
 varying vec2 texCoordV;
@@ -733,11 +737,13 @@ void main() {
 	});
 
 	var tesseractShader = new GL.ShaderProgram({
+		context : gl,
 		vertexShader : tesseractVertexShader,	
 		fragmentShader : fragmentShader
 	});
 		
 	var slicesShader = new GL.ShaderProgram({
+		context : gl,
 		vertexShader : slicesVertexShader,
 		fragmentShader : fragmentShader
 	});
@@ -763,13 +769,16 @@ void main() {
 	}
 
 	wireCubeMesh = new GL.SceneObject({
+		scene : renderer.scene,
 		mode : gl.LINES,
 		shader : shader,
 		indexes : new GL.ElementArrayBuffer({
+			context : gl,
 			data : edges
 		}),
 		attrs : {
 			vertex : new GL.ArrayBuffer({
+				context : gl,
 				dim : dim,
 				data : vertex
 			})
@@ -810,6 +819,7 @@ void main() {
 	}
 	
 	new GL.Texture2D({
+		context : gl,
 		url : 'tex/bricks.png',
 		minFilter : gl.NEAREST,
 		magFilter : gl.LINEAR,
@@ -819,6 +829,7 @@ void main() {
 	});
 
 	new GL.Texture2D({
+		context : gl,
 		url : 'tex/player.png',
 		minFilter : gl.NEAREST,
 		magFilter : gl.LINEAR,
@@ -835,11 +846,20 @@ void main() {
 	});
 
 	solidCubeMesh = new GL.SceneObject({
+		scene : renderer.scene,
 		mode : gl.TRIANGLES,
 		shader : tesseractShader,
 		attrs : {
-			vertex : new GL.ArrayBuffer({dim : dim, data : quadVertexes, keep : true}),
-			texCoord : new GL.ArrayBuffer({dim : 2, data : texCoords, keep : true})
+			vertex : new GL.ArrayBuffer({
+				context : gl,
+				dim : dim,
+				data : quadVertexes,
+			}),
+			texCoord : new GL.ArrayBuffer({
+				context : gl,
+				dim : 2, 
+				data : texCoords
+			})
 		},
 		uniforms : {
 			viewPos4 : viewPos4,
