@@ -1,6 +1,6 @@
 var canvas;
 var gl;
-var renderer;
+var glutil;
 var mouse;
 var wireCubeMesh;
 var solidCubeMesh;
@@ -112,7 +112,7 @@ orthonormalize = function(m, n) {
 function resize() {
 	canvas.width = window.innerWidth;
 	canvas.height = window.innerHeight;
-	renderer.resize();
+	glutil.resize();
 
 	var info = $('#info');
 	var width = window.innerWidth 
@@ -235,7 +235,7 @@ var Player = makeClass({
 		orthonormalize(rot3, 3);
 
 		//dirty trick: do (hyper)planar controls in xyz and vertical in w, then swap z and w
-		// ... until I just outright swap the z and w in the renderer ...
+		// ... until I just outright swap the z and w in the glutil ...
 		var tmp = this.vel[2];
 		this.vel[2] = this.vel[3];
 		this.vel[3] = tmp;
@@ -280,7 +280,7 @@ function update() {
 		objs[i].update();
 	}
 	//draw
-	renderer.draw();
+	glutil.draw();
 	for (var i = 0; i < blocks.length; ++i) {
 		blocks[i].draw();
 	}
@@ -542,8 +542,8 @@ $(document).ready(function() {
 	$(window).disableSelection()
 
 	try {
-		renderer = new GL.CanvasRenderer({canvas:canvas});
-		gl = renderer.context;
+		glutil = new GLUtil({canvas:canvas});
+		gl = glutil.context;
 	} catch (e) {
 		$(canvas).remove();
 		$('#webglfail').show();
@@ -583,18 +583,17 @@ $(document).ready(function() {
 	
 	viewPos4 = vec4.create();
 	
-	renderer.view.zNear = .1;
-	renderer.view.zFar = 100;
-	renderer.onfps = function(fps) { $('#fps').text(fps); };
+	glutil.view.zNear = .1;
+	glutil.view.zFar = 100;
+	glutil.onfps = function(fps) { $('#fps').text(fps); };
 	viewPos4[2] = 10;
 
 	gl.enable(gl.DEPTH_TEST);
 	gl.clearColor(.6, .8, 1., 1.);
 
 
-	var tesseractVertexShader = new GL.VertexShader({
-		context : gl,
-		code : GL.vertexPrecision + mlstr(function(){/*
+	var tesseractVertexShader = new glutil.VertexShader({
+		code : glutil.vertexPrecision + mlstr(function(){/*
 attribute vec4 vertex;
 attribute vec2 texCoord;
 uniform mat4 projMat;
@@ -618,9 +617,8 @@ void main() {
 	});
 
 	//application of w locally.  good if were not rotating in the w plane
-	var slicesVertexShader = new GL.VertexShader({
-		context : gl,
-		code : GL.vertexPrecision + mlstr(function(){/*
+	var slicesVertexShader = new glutil.VertexShader({
+		code : glutil.vertexPrecision + mlstr(function(){/*
 attribute vec4 vertex;
 attribute vec2 texCoord;
 uniform mat4 projMat;
@@ -704,9 +702,8 @@ void main() {
 */})
 	});
 
-	var fragmentShader = new GL.FragmentShader({
-		context : gl,
-		code : GL.fragmentPrecision + mlstr(function(){/*
+	var fragmentShader = new glutil.FragmentShader({
+		code : glutil.fragmentPrecision + mlstr(function(){/*
 varying vec4 srcVertex;
 varying vec2 texCoordV;
 uniform sampler2D tex;
@@ -736,14 +733,12 @@ void main() {
 */})
 	});
 
-	var tesseractShader = new GL.ShaderProgram({
-		context : gl,
+	var tesseractShader = new glutil.ShaderProgram({
 		vertexShader : tesseractVertexShader,	
 		fragmentShader : fragmentShader
 	});
 		
-	var slicesShader = new GL.ShaderProgram({
-		context : gl,
+	var slicesShader = new glutil.ShaderProgram({
 		vertexShader : slicesVertexShader,
 		fragmentShader : fragmentShader
 	});
@@ -768,17 +763,14 @@ void main() {
 		}
 	}
 
-	wireCubeMesh = new GL.SceneObject({
-		scene : renderer.scene,
+	wireCubeMesh = new glutil.SceneObject({
 		mode : gl.LINES,
 		shader : shader,
-		indexes : new GL.ElementArrayBuffer({
-			context : gl,
+		indexes : new glutil.ElementArrayBuffer({
 			data : edges
 		}),
 		attrs : {
-			vertex : new GL.ArrayBuffer({
-				context : gl,
+			vertex : new glutil.ArrayBuffer({
 				dim : dim,
 				data : vertex
 			})
@@ -818,8 +810,7 @@ void main() {
 		}
 	}
 	
-	new GL.Texture2D({
-		context : gl,
+	new glutil.Texture2D({
 		url : 'tex/bricks.png',
 		minFilter : gl.NEAREST,
 		magFilter : gl.LINEAR,
@@ -828,8 +819,7 @@ void main() {
 		}
 	});
 
-	new GL.Texture2D({
-		context : gl,
+	new glutil.Texture2D({
 		url : 'tex/player.png',
 		minFilter : gl.NEAREST,
 		magFilter : gl.LINEAR,
@@ -838,25 +828,22 @@ void main() {
 		}
 	});
 
-	$('#renderer').change(function() {
+	$('#glutil').change(function() {
 		solidCubeMesh.shader = ({
 			tesseract : tesseractShader,
 			slices : slicesShader
 		})[$(this).val()];
 	});
 
-	solidCubeMesh = new GL.SceneObject({
-		scene : renderer.scene,
+	solidCubeMesh = new glutil.SceneObject({
 		mode : gl.TRIANGLES,
 		shader : tesseractShader,
 		attrs : {
-			vertex : new GL.ArrayBuffer({
-				context : gl,
+			vertex : new glutil.ArrayBuffer({
 				dim : dim,
 				data : quadVertexes,
 			}),
-			texCoord : new GL.ArrayBuffer({
-				context : gl,
+			texCoord : new glutil.ArrayBuffer({
 				dim : 2, 
 				data : texCoords
 			})
