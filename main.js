@@ -564,7 +564,7 @@ $(document).ready(function() {
 	});
 	*/
 	
-	rotationMethod = '3d';
+	rotationMethod = 'xyw';
 	$('#rotation').change(function() {
 		rotationMethod = $(this).val();
 	});
