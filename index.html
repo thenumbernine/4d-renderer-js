@@ -10,14 +10,28 @@
 		<script type='text/javascript' src='/js/jquery-1.11.1.min.js'></script>
 		<script type="text/javascript" src="/js/purl.js"></script>
 		<script type='text/javascript' src='/js/util.js'></script>
-		<script type='text/javascript' src='/js/lua.vm-util.js'></script>
+		<script type='text/javascript' src='/js/lua.vm-util.js.lua'></script>
 		<script type='text/javascript' src='/js/gl-matrix.2.2.0.min.js'></script>
 		<script type='text/javascript' src='/js/gl-util.js'></script>
 		<script type='text/javascript' src='/js/mouse3d.js'></script>
-		<script type="text/javascript" src="/MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+		<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<script type="text/javascript">
+// mathjax config
+// https://docs.mathjax.org/en/latest/web/configuration.html
+MathJax = {
+	tex: {
+		inlineMath: [['$', '$'], ['\\(', '\\)']]
+	},
+	svg: {
+		fontCache: 'global'
+	}
+};
+</script>
+
+	
 		<script type='text/javascript' src='main.js'></script>
 		
-		<script type='text/javascript'>
+		<!-- script type='text/javascript'>
 var _gaq = _gaq || [];
 _gaq.push(['_setAccount', 'UA-17312646-1']);
 _gaq.push(['_trackPageview']);
@@ -26,7 +40,7 @@ _gaq.push(['_trackPageview']);
 	ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
 	var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
 })();
-		</script>
+		</script -->
 		<style type='text/css'>
 ::-webkit-scrollbar {
 	display:none;
