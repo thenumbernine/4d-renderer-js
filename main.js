@@ -1,12 +1,20 @@
-var canvas;
-var gl;
-var glutil;
-var mouse;
-var wireCubeMesh;
-var solidCubeMesh;
-var dim = 4;
-var playerStartPos = [4,4,4,-1];
-var viewAngle4 = mat4.create();
+import { Mouse3D } from '/js/mouse3d.js';
+import { GLUtil } from '/js/gl-util.js';
+import { vec3, vec4, mat3, mat4 } from '/js/gl-matrix-3.4.1/index.js';
+import { arrayClone, getIDs, DOM, removeFromParent, hide, show, hidden } from '/js/util.js';
+
+let canvas;
+let gl;
+let glutil;
+let mouse;
+let wireCubeMesh;
+let solidCubeMesh;
+let dim = 4;
+let playerStartPos = [4,4,4,-1];
+let viewAngle4 = mat4.create();
+
+const ids = getIDs();
+window.ids = ids;
 
 //R = cos(theta) + sin(theta) *u + (1 - cos(theta)) uxu
 /*
@@ -55,9 +63,9 @@ xw sin(theta), -yw sin(theta), zw sin(theta), (xw + yw + zw) cos(theta) + xy + x
 r_ij = delta_ij (a_jk^2 cos(theta) + a_kl^2 not in a_jk), sign_ij * a_ij sin(theta)
 */
 
-mat4.rotate4D = function(m, angle, xy, xz, xw, yz, yw, zw) {
-	var c = Math.cos(angle);
-	var s = Math.sin(angle);
+function rotate4D(m, angle, xy, xz, xw, yz, yw, zw) {
+	let c = Math.cos(angle);
+	let s = Math.sin(angle);
 	//col 1
 	m[0] = c * (xy * xy + xz * xz + xw * xw) + yz * yz + yw * yw + zw * zw;
 	m[1] = -s * xy;
@@ -82,27 +90,27 @@ mat4.rotate4D = function(m, angle, xy, xz, xw, yz, yw, zw) {
 
 //m = matrix
 //n = dimension
-orthonormalize = function(m, n) {
+function orthonormalize (m, n) {
 	//orthonormalize m
-	for (var i = 0; i < n; ++i) {
-		var len = 0;
-		for (var k = 0; k < n; ++k) {
+	for (let i = 0; i < n; ++i) {
+		let len = 0;
+		for (let k = 0; k < n; ++k) {
 			len += m[i+n*k] * m[i+n*k];
 		}
 		len = 1 / Math.sqrt(len);
-		for (var k = 0; k < n; ++k) {
+		for (let k = 0; k < n; ++k) {
 			m[i+n*k] *= len;
 		}
 		//check
-		for (var j = i+1; j < n; ++j) {
-			var dot = 0;
-			var div = 0;
-			for (var k = 0; k < n; ++k) {
+		for (let j = i+1; j < n; ++j) {
+			let dot = 0;
+			let div = 0;
+			for (let k = 0; k < n; ++k) {
 				dot += m[i+n*k] * m[j+n*k];
 				div += m[i+n*k] * m[i+n*k];
 			}
-			var scale = dot / div;
-			for (var k = 0; k < n; ++k) {
+			let scale = dot / div;
+			for (let k = 0; k < n; ++k) {
 				m[j+n*k] -= m[i+n*k] * scale;
 			}
 		}
@@ -114,59 +122,57 @@ function resize() {
 	canvas.height = window.innerHeight;
 	glutil.resize();
 
-	var info = $('#info');
-	var width = window.innerWidth 
-		- parseInt(info.css('padding-left'))
-		- parseInt(info.css('padding-right'));
-	info.width(width);
-	var height = window.innerHeight
-		- parseInt(info.css('padding-top'))
-		- parseInt(info.css('padding-bottom'));
-	info.height(height - 32);
-	$('#panel').height(height - 16);
+	const info = ids.info;
+	const width = window.innerWidth 
+		- parseInt(info.style.paddingLeft)
+		- parseInt(info.style.paddingRight);
+	info.style.width = width+'px';
+	const height = window.innerHeight
+		- parseInt(info.style.paddingTop)
+		- parseInt(info.style.paddingBottom);
+	info.style.height = (height - 32)+'px';
+	ids.panel.style.height = (height - 16)+'px';
 }
 
-var blocks = [];
-var objs = [];
+let blocks = [];
+let objs = [];
 
-var GameObject = makeClass({
-	init : function(args) {
+class GameObject {
+	constructor(args) {
 		if (args.pos !== undefined) {
 			this.pos = vec4.fromValues.apply(vec3, args.pos);
 		} else {
 			this.pos = vec4.create();
 		}
-	},
-	draw : function() {
+	}
+	draw() {
 		if (!this.tex) return;
 		solidCubeMesh.draw({
 			uniforms : {
-				pos4 : this.pos
+				pos4 : this.pos,
 			},
 			texs : [this.tex]
 		});
 	}
-});
+}
 
-var Block = makeClass({
-	super : GameObject
-});
+class Block extends GameObject {
+}
 
-var gravity = 9.8;
-var dt = 1/20;
-var DynamicObject = makeClass({
-	super : GameObject,
-	collisionFlags : 0,
-	init : function(args) {
-		DynamicObject.super.apply(this, arguments);
+let gravity = 9.8;
+let dt = 1/20;
+class DynamicObject extends GameObject {
+	collisionFlags = 0;
+	constructor(args) {
+		super(args);
 	
 		if (args.vel !== undefined) {
 			this.vel = vec4.fromValues.apply(vec3, args.vel);
 		} else {
 			this.vel = vec4.create();
 		}
-	},
-	update : function() {
+	}
+	update() {
 		if ((this.collisionFlags & (1 << 4)) == 0) {	//4 being the 1st bit of the 3rd set of bit pairs : x-,x+,y-,y+,z-,z+,w-,w+
 			this.vel[2] -= gravity * dt;
 		}
@@ -176,14 +182,14 @@ var DynamicObject = makeClass({
 		this.collisionFlags = 0;
 		//check collision with all other objects ...
 		// this is where chunks and bins come in handy ...
-		for (var j = 0; j < blocks.length; ++j) {
-			var block = blocks[j];
-			var maxAbsDx = 0;
-			var maxDx = undefined;
-			var maxAxis = undefined;
-			for (var k = dim-1; k >= 0; --k) {
-				var dx = this.pos[k] - block.pos[k];
-				var adx = Math.abs(dx);
+		for (let j = 0; j < blocks.length; ++j) {
+			let block = blocks[j];
+			let maxAbsDx = 0;
+			let maxDx = undefined;
+			let maxAxis = undefined;
+			for (let k = dim-1; k >= 0; --k) {
+				let dx = this.pos[k] - block.pos[k];
+				let adx = Math.abs(dx);
 				if (adx > maxAbsDx) {
 					maxAbsDx = adx;
 					maxDx = dx;
@@ -204,28 +210,24 @@ var DynamicObject = makeClass({
 			}
 		}
 	}
-});
+}
 
 //keep the first 6 in order for bit op shortcuts
-var CMD_LEFT = 1;	//x-
-var CMD_RIGHT = 2;	//x+
-var CMD_UP = 4;		//y-
-var CMD_DOWN = 8;	//y+
-var CMD_BACK = 16;	//w-
-var CMD_FORTH = 32;	//w+
-var CMD_MOVE_MASK = (1<<6)-1;
+let CMD_LEFT = 1;	//x-
+let CMD_RIGHT = 2;	//x+
+let CMD_UP = 4;		//y-
+let CMD_DOWN = 8;	//y+
+let CMD_BACK = 16;	//w-
+let CMD_FORTH = 32;	//w+
+let CMD_MOVE_MASK = (1<<6)-1;
 
-var CMD_JUMP = 64;	//z+
+let CMD_JUMP = 64;	//z+
 
-var rot3 = mat3.create();
+let rot3 = mat3.create();
 rot3[0] = rot3[4] = rot3[9] = 1;
-var Player = makeClass({
-	super : DynamicObject,
-	inputCmd : 0,
-	speed : 2,
-	jumpSpeed : 5,
-	update : function() {
-		Player.superProto.update.apply(this, arguments);
+class Player extends DynamicObject {
+	update(...args) {
+		super.update(...args);
 
 		//get 3D basis of 4D space
 		mat3.fromMat4(rot3, viewAngle4);
@@ -236,13 +238,13 @@ var Player = makeClass({
 
 		//dirty trick: do (hyper)planar controls in xyz and vertical in w, then swap z and w
 		// ... until I just outright swap the z and w in the glutil ...
-		var tmp = this.vel[2];
+		let tmp = this.vel[2];
 		this.vel[2] = this.vel[3];
 		this.vel[3] = tmp;
 		
 		this.vel[0] = this.vel[1] = this.vel[2] = 0;
 		if (this.inputCmd & CMD_MOVE_MASK) {
-			for (var i = 0; i < dim-1; ++i) {
+			for (let i = 0; i < dim-1; ++i) {
 				if (this.inputCmd & (1 << (i << 1))) {
 					this.vel[i] = -this.speed;
 				}
@@ -253,7 +255,7 @@ var Player = makeClass({
 			vec3.transformMat3(this.vel, this.vel, rot3);
 		}
 		//... and here's the swap
-		var tmp = this.vel[2];
+		tmp = this.vel[2];
 		this.vel[2] = this.vel[3];
 		this.vel[3] = tmp;
 		
@@ -266,36 +268,38 @@ var Player = makeClass({
 		if (this.pos[2] < -30) {
 			this.reset();
 		}
-	},
-	reset : function() {
+	}
+	reset() {
 		vec4.copy(this.pos, playerStartPos);
 		vec4.set(this.vel, 0,0,0,0);
 	}
-});
-
+}
+Player.prototype.inputCmd = 0;
+Player.prototype.speed = 2;
+Player.prototype.jumpSpeed = 5;
 
 function update() {
 	//update
-	for (var i = 0; i < objs.length; ++i) {
+	for (let i = 0; i < objs.length; ++i) {
 		objs[i].update();
 	}
 	//draw
 	glutil.draw();
-	for (var i = 0; i < blocks.length; ++i) {
+	for (let i = 0; i < blocks.length; ++i) {
 		blocks[i].draw();
 	}
-	for (var i = 0; i < objs.length; ++i) {
+	for (let i = 0; i < objs.length; ++i) {
 		objs[i].draw();
 	}
-	requestAnimFrame(update);
+	requestAnimationFrame(update);
 };
 
-var player;
+let player;
 function genmap() {
 	/* random crap
-	for (var i = 0; i < 100; ++i) {
-		var irand = function(n) { return Math.floor(n * Math.random()); };
-		var pos4 = vec4.fromValues(irand(9)-4, irand(9)-4, irand(9)-4, irand(9)-4);
+	for (let i = 0; i < 100; ++i) {
+		let irand = (n) => { return Math.floor(n * Math.random()); };
+		let pos4 = vec4.fromValues(irand(9)-4, irand(9)-4, irand(9)-4, irand(9)-4);
 
 		blocks.push({
 			pos : pos4
@@ -304,11 +308,11 @@ function genmap() {
 	*/
 	
 	/* generated level * /
-	for (var i = -4; i <= 4; ++i) {
-		for (var j = -4; j <= 4; ++j) {
-			for (var k = -4; k <= 4; ++k) {
-				for (var l = -4; l <= 4; ++l) {
-					var set = true;
+	for (let i = -4; i <= 4; ++i) {
+		for (let j = -4; j <= 4; ++j) {
+			for (let k = -4; k <= 4; ++k) {
+				for (let l = -4; l <= 4; ++l) {
+					let set = true;
 					set &= l <= -4;	//exclude above ground
 					set &= Math.abs(i) > 1 || Math.abs(j) > 1; //exclude bottomless pit
 					set |= Math.abs(i - k * Math.cos(l)) < 1 
@@ -325,7 +329,7 @@ function genmap() {
 	/**/
 
 	/* hypercube */
-	var edges = [
+	let edges = [
 		[-4,-4,-4],
 		[4,-4,-4],
 		[-4,4,-4],
@@ -335,10 +339,10 @@ function genmap() {
 		[-4,4,4],
 		[4,4,4]
 	];
-	for (var j = 0; j < 4; ++j) {
-		$.each(edges, function(_,edge) {
-			for (var i = -4; i <= 4; ++i) {
-				var pos = Array.apply(undefined, edge);
+	for (let j = 0; j < 4; ++j) {
+		edges.forEach(edge => {
+			for (let i = -4; i <= 4; ++i) {
+				let pos = arrayClone.call(edge);
 				pos.splice(j, 0, i); 
 				blocks.push(new Block({pos:pos}));
 			}
@@ -347,12 +351,12 @@ function genmap() {
 	/**/
 
 	/* sphere * /
-	var res = 5;
-	var max = 2;
-	for (var i = -res; i <= res; ++i) {
-		for (var j = -res; j <= res; ++j) {
-			for (var k = -res; k <= res; ++k) {
-				for (var l = -res; l <= res; ++l) {
+	let res = 5;
+	let max = 2;
+	for (let i = -res; i <= res; ++i) {
+		for (let j = -res; j <= res; ++j) {
+			for (let k = -res; k <= res; ++k) {
+				for (let l = -res; l <= res; ++l) {
 					solid[i][j][k][l] = i*i + j*j + k*k + l*l < res*res - 1;
 				}
 			}
@@ -360,29 +364,29 @@ function genmap() {
 	}
 
 	/* mandel-julia fractal * /
-	var res = 5;
-	var max = 2;
-	var maxiter = 10;
-	var solid = [];
-	for (var i = -res; i <= res; ++i) {
+	let res = 5;
+	let max = 2;
+	let maxiter = 10;
+	let solid = [];
+	for (let i = -res; i <= res; ++i) {
 		solid[i] = [];
-		for (var j = -res; j <= res; ++j) {
+		for (let j = -res; j <= res; ++j) {
 			solid[i][j] = [];
-			for (var k = -res; k <= res; ++k) {
+			for (let k = -res; k <= res; ++k) {
 				solid[i][j][k] = [];
-				for (var l = -res; l <= res; ++l) {
-					var zr = i*max/res;
-					var zi = j*max/res;
-					var zj = k*max/res;
-					var zk = l*max/res;
-					var cr = -1;
-					var ci = .2;
-					var cj = 0;
-					var ck = 0;
-					var iter = 0;
+				for (let l = -res; l <= res; ++l) {
+					let zr = i*max/res;
+					let zi = j*max/res;
+					let zj = k*max/res;
+					let zk = l*max/res;
+					let cr = -1;
+					let ci = .2;
+					let cj = 0;
+					let ck = 0;
+					let iter = 0;
 					for (; iter < maxiter; ++iter) {
-						var zrn = zr * zr - zi * zi + cr;
-						var zin = 2 * zr * zi + ci;
+						let zrn = zr * zr - zi * zi + cr;
+						let zin = 2 * zr * zi + ci;
 						zr = zrn;
 						zi = zin;
 						if (zr * zr + zi * zi > 4) break;
@@ -392,18 +396,18 @@ function genmap() {
 			}
 		}
 	}
-	var issolid = function(i,j,k,l) {
-		var r = solid;
+	let issolid = (i,j,k,l) => {
+		let r = solid;
 		if (!(i in r)) return; r = r[i];
 		if (!(j in r)) return; r = r[j];
 		if (!(k in r)) return; r = r[k];
 		if (!(l in r)) return; r = r[l];
 		return r;
 	};
-	for (var i = -res; i <= res; ++i) {
-		for (var j = -res; j <= res; ++j) {
-			for (var k = -res; k <= res; ++k) {
-				for (var l = -res; l <= res; ++l) {
+	for (let i = -res; i <= res; ++i) {
+		for (let j = -res; j <= res; ++j) {
+			for (let k = -res; k <= res; ++k) {
+				for (let l = -res; l <= res; ++l) {
 					if (issolid(i,j,k,l)) {
 						if (issolid(i+1,j,k,l) &&
 							issolid(i-1,j,k,l) &&
@@ -429,9 +433,9 @@ function genmap() {
 */
 }
 
-function onkeydown(event) {
+function onkeydown(e) {
 	if (!player) return;
-	var keyCode = event.keyCode;
+	let keyCode = e.keyCode;
 	switch (keyCode) {
 	case 87:	//'w'
 	case 38:	//up
@@ -462,12 +466,12 @@ function onkeydown(event) {
 	default:
 		return;	//...and don't prevent default
 	}
-	event.preventDefault();
+	e.preventDefault();
 }
 
-function onkeyup(event) {
+function onkeyup(e) {
 	if (!player) return;
-	var keyCode = event.keyCode;
+	let keyCode = e.keyCode;
 	switch (keyCode) {
 	case 87:	//'w'
 	case 38:	//up
@@ -498,110 +502,110 @@ function onkeyup(event) {
 	default:
 		return;	//...and don't prevent default
 	}
-	event.preventDefault();
+	e.preventDefault();
 }
 
-function onkeypress(event) {
-	event.preventDefault();
+function onkeypress(e) {
+	e.preventDefault();
 }
 
 function initInput() {
-	$(window)
-		.keydown(onkeydown)
-		.keyup(onkeyup)
-		.keypress(onkeypress);
+	window.addEventListener('keydown', onkeydown);
+	window.addEventListener('keyup', onkeyup);
+	window.addEventListener('keypress', onkeypress);
 }
 
-$(document).ready(function() {
-	$('#panelButton').click(function() {
-		var panel = $('#panel');	
-		if (panel.css('display') == 'none') {
-			panel.show();
-			$('#info').hide();
-		} else {
-			panel.hide();
-		}
-	});
-	$('#infoButton').click(function() {
-		var info = $('#info');
-		if (info.css('display') == 'none') {
-			info.show();
-			$('#panel').hide();
-		} else {
-			info.hide();
-		}
-	});
-	
-	canvas = $('<canvas>', {
-		css : {
-			left : 0,
-			top : 0,
-			position : 'absolute'
-		}
-	}).prependTo(document.body).get(0);
-	$(window).disableSelection()
 
-	try {
-		glutil = new GLUtil({canvas:canvas});
-		gl = glutil.context;
-	} catch (e) {
-		$(canvas).remove();
-		$('#webglfail').show();
-		throw e;
+
+ids.panelButton.addEventListener('click', e => {
+	if (hidden(ids.panel)) {
+		show(ids.panel);
+		hide(ids.info);
+	} else {
+		hide(ids.panel);
 	}
-	$('#menu').show();
-	$('#panel').show();
-
-	if ($.url().param('info')) {
-		$('#info').show();
-		$('#panel').hide();
+});
+ids.infoButton.addEventListener('click', e => {
+	if (hidden(ids.info)) {
+		show(ids.info);
+		hide(ids.panel);
+	} else {
+		hide(ids.info);
 	}
+});
 
-	/*
-	$('#resetPlayer').click(function() {
-		if (!player) return;
-		player.reset();
-	});
-	*/
-	
-	rotationMethod = 'xyw';
-	$('#rotation').change(function() {
-		rotationMethod = $(this).val();
-	});
-	
-	var originalViewAngle4 = [
-		1, 0, 0, 0, 
-		0, 0.5, -0.866, 0, 
-		0, 0.866, 0.5, 0, 
-		0, 0, 0, 1
-	];
-	$('#resetRotation').click(function() {
-		mat4.copy(viewAngle4, originalViewAngle4);
-	});
+canvas = DOM(
+	'canvas', {
+	css : {
+		left : 0,
+		top : 0,
+		position : 'absolute',
+		userSelect : 'none',
+	},
+	prependTo : document.body,
+});
+window.canvas = canvas;
+try {
+	glutil = new GLUtil({canvas:canvas});
+	gl = glutil.context;
+} catch (e) {
+	removeFromParent(canvas);
+	show(ids.webglfail);
+	throw e;
+}
+show(ids.menu);
+show(ids.panel);
+
+const urlparams = new URLSearchParams(window.location.search);
+if (urlparams.get('info')) {
+	show(ids.info);
+	hide(ids.panel);
+}
+
+/*
+ids.resetPlayer.addEventListener('click', e => {
+	if (!player) return;
+	player.reset();
+});
+*/
+
+let rotationMethod = 'xyw';
+const rotation = document.getElementById('rotation');
+rotation.addEventListener('change', e => {
+	rotationMethod = rotation.value;
+});
+
+let originalViewAngle4 = [
+	1, 0, 0, 0, 
+	0, 0.5, -0.866, 0, 
+	0, 0.866, 0.5, 0, 
+	0, 0, 0, 1
+];
+ids.resetRotation.addEventListener('click', e => {
 	mat4.copy(viewAngle4, originalViewAngle4);
-	orthonormalize(viewAngle4, 4);
-	
-	viewPos4 = vec4.create();
-	
-	glutil.view.zNear = .1;
-	glutil.view.zFar = 100;
-	glutil.onfps = function(fps) { $('#fps').text(fps); };
-	viewPos4[2] = 10;
+});
+mat4.copy(viewAngle4, originalViewAngle4);
+orthonormalize(viewAngle4, 4);
 
-	gl.enable(gl.DEPTH_TEST);
-	gl.clearColor(.6, .8, 1., 1.);
+let viewPos4 = vec4.create();
 
+glutil.view.zNear = .1;
+glutil.view.zFar = 100;
+glutil.onfps = (fps) => { ids.fps.innerText = fps; };
+viewPos4[2] = 10;
 
-	var tesseractVertexShader = new glutil.VertexShader({
-		code : glutil.vertexPrecision + mlstr(function(){/*
-attribute vec4 vertex;
-attribute vec2 texCoord;
+gl.enable(gl.DEPTH_TEST);
+gl.clearColor(.6, .8, 1., 1.);
+
+const tesseractVertexCode = 
+`in vec4 vertex;
+in vec2 texCoord;
 uniform mat4 projMat;
 uniform vec4 pos4;
 uniform vec4 viewPos4;
 uniform mat4 viewAngle4;
-varying vec4 srcVertex;
-varying vec2 texCoordV;
+out vec4 srcVertex;
+out vec2 texCoordV;
 void main() {
 	texCoordV = texCoord;
 	srcVertex = vertex;
@@ -613,36 +617,18 @@ void main() {
 	vtx4.w = 1.;
 	gl_Position = projMat * vtx4;
 }
-*/})
-	});
+`;
 
-	//application of w locally.  good if were not rotating in the w plane
-	var slicesVertexShader = new glutil.VertexShader({
-		code : glutil.vertexPrecision + mlstr(function(){/*
-attribute vec4 vertex;
-attribute vec2 texCoord;
+//application of w locally.  good if were not rotating in the w plane
+const slicesVertexCode = 
+`in vec4 vertex;
+in vec2 texCoord;
 uniform mat4 projMat;
 uniform vec4 pos4;
 uniform vec4 viewPos4;
 uniform mat4 viewAngle4;
-varying vec4 srcVertex;
-varying vec2 texCoordV;
-
-//http://stackoverflow.com/questions/18034677/transpose-a-mat4-in-opengl-es-2-0-glsl
-highp mat4 transpose(in highp mat4 inMatrix) {
-	highp vec4 i0 = inMatrix[0];
-	highp vec4 i1 = inMatrix[1];
-	highp vec4 i2 = inMatrix[2];
-	highp vec4 i3 = inMatrix[3];
-
-	highp mat4 outMatrix = mat4(
-                 vec4(i0.x, i1.x, i2.x, i3.x),
-                 vec4(i0.y, i1.y, i3.y, i3.y),
-                 vec4(i0.z, i1.z, i3.z, i3.z),
-                 vec4(i0.w, i1.w, i3.w, i3.w)
-                 );
-	return outMatrix;
-}
+out vec4 srcVertex;
+out vec2 texCoordV;
 
 highp mat4 mat4orthonormal(highp mat4 m) {
 	m[0] /= length(m[0]);
@@ -699,222 +685,214 @@ void main() {
 	vtx4.w = 1.;
 	gl_Position = projMat * vtx4;
 }
-*/})
-	});
+`;
 
-	var fragmentShader = new glutil.FragmentShader({
-		code : glutil.fragmentPrecision + mlstr(function(){/*
-varying vec4 srcVertex;
-varying vec2 texCoordV;
-uniform sampler2D tex;
+const fragmentCode = 
+`uniform sampler2D tex;
+in vec4 srcVertex;
+in vec2 texCoordV;
+out vec4 fragColor;
 void main() {
-	gl_FragColor = vec4(0.);
+	fragColor = vec4(0.);
 	//hue by dimension
-	gl_FragColor.r += .5 + srcVertex.w;
-	gl_FragColor.b += .5 - srcVertex.w;
-	gl_FragColor.r += .5 + srcVertex.x;
-	gl_FragColor.g += .5 - srcVertex.x;
-	gl_FragColor.b += .5 + srcVertex.y;
-	gl_FragColor.r += .5 - srcVertex.y;
-	gl_FragColor.g += .5 + srcVertex.z;
-	gl_FragColor.b += .5 - srcVertex.z;
-	gl_FragColor *= .1;	
+	fragColor.r += .5 + srcVertex.w;
+	fragColor.b += .5 - srcVertex.w;
+	fragColor.r += .5 + srcVertex.x;
+	fragColor.g += .5 - srcVertex.x;
+	fragColor.b += .5 + srcVertex.y;
+	fragColor.r += .5 - srcVertex.y;
+	fragColor.g += .5 + srcVertex.z;
+	fragColor.b += .5 - srcVertex.z;
+	fragColor *= .1;	
 	
 	//apply base color
-	gl_FragColor += texture2D(tex, texCoordV);
+	fragColor += texture(tex, texCoordV);
 	
 	//for kicks
-	gl_FragColor.a = 1.;
+	fragColor.a = 1.;
 
 	float light = dot(normalize(srcVertex.xyz), vec3(1.));
 	light = max(light, .5);
-	gl_FragColor *= light;
+	fragColor *= light;
 }
-*/})
-	});
+`;
 
-	var tesseractShader = new glutil.ShaderProgram({
-		vertexShader : tesseractVertexShader,	
-		fragmentShader : fragmentShader
-	});
-		
-	var slicesShader = new glutil.ShaderProgram({
-		vertexShader : slicesVertexShader,
-		fragmentShader : fragmentShader
-	});
-
-	var scale = 1;//.95;
-/*
-	var vertex = [];
-	for (var i = 0; i < 1<<dim; ++i) {
-		for (var j = 0; j < dim; ++j) {
-			vertex.push((((i>>j)&1)-.5) * scale);
-		}
-	}
-	var edges = [];	//indexes for edges
-	for (var i = 0; i < 1<<dim; ++i) {
-		for (var j = 0; j < dim; ++j) {
-			var ea = i;
-			var eb = i ^ (1 << j);
-			if (eb > ea) {
-				edges.push(ea);
-				edges.push(eb);
-			}
-		}
-	}
-
-	wireCubeMesh = new glutil.SceneObject({
-		mode : gl.LINES,
-		shader : shader,
-		indexes : new glutil.ElementArrayBuffer({
-			data : edges
-		}),
-		attrs : {
-			vertex : new glutil.ArrayBuffer({
-				dim : dim,
-				data : vertex
-			})
-		},
-		uniforms : {
-			viewPos4 : viewPos4,		//view position
-			viewAngle4 : viewAngle4		//view rotation
-		},
-		static : true 
-	});
-*/
-
-	var quadVertexes = [];	//indexes for quads ... er, triangles
-	var texCoords = [];
-	for (var i = 0; i < 1<<dim; ++i) {
-		for (var j = 0; j < dim-1; ++j) {
-			for (var k = j+1; k < dim; ++k) {
-				var q1 = i;
-				var q2 = i ^ (1 << j);
-				var q3 = i ^ (1 << j) ^ (1 << k);
-				var q4 = i ^ (1 << k);
-				if (q3 > q2 && q2 > q1) {
-					var push = function(n) {
-						for (var k = 0; k < dim; ++k) {
-							quadVertexes.push((((n>>k)&1)-.5) * scale);
-						}
-					}
-					push(q1);
-					push(q2);
-					push(q3);
-					push(q3);
-					push(q4);
-					push(q1);
-					texCoords = texCoords.concat([0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0]);
-				}
-			}
-		}
-	}
+let tesseractShader = new glutil.Program({
+	vertexCode : tesseractVertexCode,	
+	fragmentCode : fragmentCode,
+});
 	
-	new glutil.Texture2D({
-		url : 'tex/bricks.png',
-		minFilter : gl.NEAREST,
-		magFilter : gl.LINEAR,
-		onload : function() {
-			Block.prototype.tex = this;
-		}
-	});
-
-	new glutil.Texture2D({
-		url : 'tex/player.png',
-		minFilter : gl.NEAREST,
-		magFilter : gl.LINEAR,
-		onload : function() {
-			Player.prototype.tex = this;
-		}
-	});
-
-	$('#glutil').change(function() {
-		solidCubeMesh.shader = ({
-			tesseract : tesseractShader,
-			slices : slicesShader
-		})[$(this).val()];
-	});
-
-	solidCubeMesh = new glutil.SceneObject({
-		mode : gl.TRIANGLES,
-		shader : tesseractShader,
-		attrs : {
-			vertex : new glutil.ArrayBuffer({
-				dim : dim,
-				data : quadVertexes,
-			}),
-			texCoord : new glutil.ArrayBuffer({
-				dim : 2, 
-				data : texCoords
-			})
-		},
-		uniforms : {
-			viewPos4 : viewPos4,
-			viewAngle4 : viewAngle4,
-			tex : 0
-		},
-		texs : [],
-		static : true
-	});
-
-	genmap();
-
-	var tmpR = mat4.create();
-	mouse = new Mouse3D({
-		pressObj : canvas,
-		move : function(dx,dy) {
-			var rotAngle = Math.PI / 180 * Math.sqrt(dx*dx + dy*dy);
-			var r = Math.sqrt(dx*dx + dy*dy);
-			if (r == 0) return;
-			if (rotationMethod == '4d') {
-				mat4.rotate4D(tmpR, -.01 * dx, 0, 0, 1, 0, 0, 0);	//xw rotation
-				mat4.mul(viewAngle4, viewAngle4, tmpR);
-				mat4.rotate4D(tmpR, -.01 * dy, 0, 0, 0, 0, 1, 0);	//yw rotation
-				mat4.mul(viewAngle4, viewAngle4, tmpR);
-				orthonormalize(viewAngle4, 4);
-			} else if (rotationMethod == '3d') {
-				mat4.rotate4D(tmpR, -.01 * dx, 1, 0, 0, 0, 0, 0);	//xy rotation
-				mat4.mul(viewAngle4, viewAngle4, tmpR);
-				mat4.rotate4D(tmpR, -.01 * dy, 0, 0, 0, 1, 0, 0);	//yz rotation
-				mat4.mul(viewAngle4, tmpR, viewAngle4);
-				orthonormalize(viewAngle4, 4);
-			} else {
-				var xy = 0;
-				var xz = 0;
-				var xw = 0;
-				var yz = 0;
-				var yw = 0;
-				var zw = 0;
-
-				if (rotationMethod == 'xyz') {
-					xz = -dx / r;
-					yz = -dy / r;
-				} else if (rotationMethod == 'xyw') {
-					xw = -dx / r;
-					yw = -dy / r;
-				} else if (rotationMethod == 'xzw') {
-					xw = -dx / r;
-					zw = -dy / r;
-				} else if (rotationMethod == 'yzw') {
-					zw = -dx / r;
-					yw = -dy / r;
-				}
-
-				mat4.rotate4D(tmpR, rotAngle, xy, xz, xw, yz, yw, zw);
-				mat4.mul(viewAngle4, tmpR, viewAngle4);
-				orthonormalize(viewAngle4, 4);
-			}
-		},
-		zoom : function(dz) {
-			viewPos4[2] += .001 * dz;
-		}
-	});
-
-	initInput();
-
-	$(window).resize(resize);
-	resize();
-	
-	update();
+let slicesShader = new glutil.Program({
+	vertexCode : slicesVertexCode,
+	fragmentCode : fragmentCode,
 });
 
+let scale = 1;//.95;
+/*
+let vertex = [];
+for (let i = 0; i < 1<<dim; ++i) {
+	for (let j = 0; j < dim; ++j) {
+		vertex.push((((i>>j)&1)-.5) * scale);
+	}
+}
+let edges = [];	//indexes for edges
+for (let i = 0; i < 1<<dim; ++i) {
+	for (let j = 0; j < dim; ++j) {
+		let ea = i;
+		let eb = i ^ (1 << j);
+		if (eb > ea) {
+			edges.push(ea);
+			edges.push(eb);
+		}
+	}
+}
+
+wireCubeMesh = new glutil.SceneObject({
+	mode : gl.LINES,
+	shader : shader,
+	indexes : new glutil.ElementArrayBuffer({
+		data : edges
+	}),
+	attrs : {
+		vertex : new glutil.ArrayBuffer({
+			dim : dim,
+			data : vertex
+		})
+	},
+	uniforms : {
+		viewPos4 : viewPos4,		//view position
+		viewAngle4 : viewAngle4		//view rotation
+	},
+	static : true 
+});
+*/
+
+let quadVertexes = [];	//indexes for quads ... er, triangles
+let texCoords = [];
+for (let i = 0; i < 1<<dim; ++i) {
+	for (let j = 0; j < dim-1; ++j) {
+		for (let k = j+1; k < dim; ++k) {
+			let q1 = i;
+			let q2 = i ^ (1 << j);
+			let q3 = i ^ (1 << j) ^ (1 << k);
+			let q4 = i ^ (1 << k);
+			if (q3 > q2 && q2 > q1) {
+				let push = (n) => {
+					for (let k = 0; k < dim; ++k) {
+						quadVertexes.push((((n>>k)&1)-.5) * scale);
+					}
+				}
+				push(q1);
+				push(q2);
+				push(q3);
+				push(q3);
+				push(q4);
+				push(q1);
+				texCoords = texCoords.concat([0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0]);
+			}
+		}
+	}
+}
+
+new glutil.Texture2D({
+	url : 'tex/bricks.png',
+	minFilter : gl.NEAREST,
+	magFilter : gl.LINEAR,
+	onload : function() { Block.prototype.tex = this; },
+});
+
+new glutil.Texture2D({
+	url : 'tex/player.png',
+	minFilter : gl.NEAREST,
+	magFilter : gl.LINEAR,
+	onload : function() { Player.prototype.tex = this; },
+});
+
+ids.renderer.addEventListener('change', e => {
+	solidCubeMesh.shader = ({
+		tesseract : tesseractShader,
+		slices : slicesShader
+	})[ids.renderer.value];
+});
+
+solidCubeMesh = new glutil.SceneObject({
+	mode : gl.TRIANGLES,
+	shader : tesseractShader,
+	attrs : {
+		vertex : new glutil.ArrayBuffer({
+			dim : dim,
+			data : quadVertexes,
+		}),
+		texCoord : new glutil.ArrayBuffer({
+			dim : 2, 
+			data : texCoords
+		})
+	},
+	uniforms : {
+		viewPos4 : viewPos4,
+		viewAngle4 : viewAngle4,
+		tex : 0,
+	},
+	texs : [],
+	static : true
+});
+
+genmap();
+
+let tmpR = mat4.create();
+mouse = new Mouse3D({
+	pressObj : canvas,
+	move : (dx,dy) => {
+		let rotAngle = Math.PI / 180 * Math.sqrt(dx*dx + dy*dy);
+		let r = Math.sqrt(dx*dx + dy*dy);
+		if (r == 0) return;
+		if (rotationMethod == '4d') {
+			rotate4D(tmpR, -.01 * dx, 0, 0, 1, 0, 0, 0);	//xw rotation
+			mat4.mul(viewAngle4, viewAngle4, tmpR);
+			rotate4D(tmpR, -.01 * dy, 0, 0, 0, 0, 1, 0);	//yw rotation
+			mat4.mul(viewAngle4, viewAngle4, tmpR);
+			orthonormalize(viewAngle4, 4);
+		} else if (rotationMethod == '3d') {
+			rotate4D(tmpR, -.01 * dx, 1, 0, 0, 0, 0, 0);	//xy rotation
+			mat4.mul(viewAngle4, viewAngle4, tmpR);
+			rotate4D(tmpR, -.01 * dy, 0, 0, 0, 1, 0, 0);	//yz rotation
+			mat4.mul(viewAngle4, tmpR, viewAngle4);
+			orthonormalize(viewAngle4, 4);
+		} else {
+			let xy = 0;
+			let xz = 0;
+			let xw = 0;
+			let yz = 0;
+			let yw = 0;
+			let zw = 0;
+
+			if (rotationMethod == 'xyz') {
+				xz = -dx / r;
+				yz = -dy / r;
+			} else if (rotationMethod == 'xyw') {
+				xw = -dx / r;
+				yw = -dy / r;
+			} else if (rotationMethod == 'xzw') {
+				xw = -dx / r;
+				zw = -dy / r;
+			} else if (rotationMethod == 'yzw') {
+				zw = -dx / r;
+				yw = -dy / r;
+			}
+
+			rotate4D(tmpR, rotAngle, xy, xz, xw, yz, yw, zw);
+			mat4.mul(viewAngle4, tmpR, viewAngle4);
+			orthonormalize(viewAngle4, 4);
+		}
+	},
+	zoom : (dz) => {
+		viewPos4[2] += .001 * dz;
+	}
+});
+
+initInput();
+
+window.addEventListener('resize', resize);
+resize();
+
+update();
