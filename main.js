@@ -1,7 +1,11 @@
-import { Mouse3D } from '/js/mouse3d.js';
-import { GLUtil } from '/js/gl-util.js';
-import { vec3, vec4, mat3, mat4 } from '/js/gl-matrix-3.4.1/index.js';
-import { arrayClone, getIDs, DOM, removeFromParent, hide, show, hidden } from '/js/util.js';
+import {Mouse3D} from '/js/mouse3d.js';
+import {GLUtil} from '/js/gl-util.js';
+import {vec3, vec4, mat3, mat4} from '/js/gl-matrix-3.4.1/index.js';
+import {arrayClone, getIDs, DOM, removeFromParent, hide, show, hidden} from '/js/util.js';
+
+const ids = getIDs();
+window.ids = ids;
+const urlparams = new URLSearchParams(window.location.search);
 
 let canvas;
 let gl;
@@ -12,9 +16,6 @@ let solidCubeMesh;
 let dim = 4;
 let playerStartPos = [4,4,4,-1];
 let viewAngle4 = mat4.create();
-
-const ids = getIDs();
-window.ids = ids;
 
 //R = cos(theta) + sin(theta) *u + (1 - cos(theta)) uxu
 /*
@@ -291,7 +292,7 @@ function update() {
 	for (let i = 0; i < objs.length; ++i) {
 		objs[i].draw();
 	}
-	requestAnimationFrame(update);
+	window.requestAnimationFrame(update);
 };
 
 let player;
@@ -342,7 +343,7 @@ function genmap() {
 	for (let j = 0; j < 4; ++j) {
 		edges.forEach(edge => {
 			for (let i = -4; i <= 4; ++i) {
-				let pos = arrayClone.call(edge);
+				let pos = arrayClone(edge);
 				pos.splice(j, 0, i); 
 				blocks.push(new Block({pos:pos}));
 			}
@@ -556,7 +557,6 @@ try {
 show(ids.menu);
 show(ids.panel);
 
-const urlparams = new URLSearchParams(window.location.search);
 if (urlparams.get('info')) {
 	show(ids.info);
 	hide(ids.panel);
