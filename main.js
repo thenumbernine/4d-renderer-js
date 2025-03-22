@@ -1,7 +1,8 @@
+import {Canvas} from '/js/dom.js';
 import {Mouse3D} from '/js/mouse3d.js';
 import {GLUtil} from '/js/gl-util.js';
 import {vec3, vec4, mat3, mat4} from '/js/gl-matrix-3.4.1/index.js';
-import {arrayClone, getIDs, DOM, removeFromParent, hide, show, hidden} from '/js/util.js';
+import {arrayClone, getIDs, removeFromParent, hide, show, hidden} from '/js/util.js';
 
 const ids = getIDs();
 window.ids = ids;
@@ -535,9 +536,8 @@ ids.infoButton.addEventListener('click', e => {
 	}
 });
 
-canvas = DOM(
-	'canvas', {
-	css : {
+canvas = Canvas({
+	style : {
 		left : 0,
 		top : 0,
 		position : 'absolute',
